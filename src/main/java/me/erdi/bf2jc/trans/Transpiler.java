@@ -28,13 +28,15 @@ public class Transpiler implements Runnable {
     private final BufferedReader input;
     private final String tab;
     private final File output;
+    private final int tapeLength;
 
     private boolean fixUnclosedBracket = false;
 
-    public Transpiler(String tab, Reader input, File output) {
+    public Transpiler(String tab, Reader input, File output, int tapeLength) {
         this.tab = tab;
         this.input = new BufferedReader(input);
         this.output = output;
+        this.tapeLength = tapeLength;
     }
 
     private String getTabs(int depth) {
@@ -59,17 +61,15 @@ public class Transpiler implements Runnable {
 
 
         try(BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
-            writer.write("import java.util.List;\n" +
-                    "import java.util.ArrayList;\n" +
-                    "import java.io.IOException;\n" +
+            writer.write("import java.io.IOException;\n" +
                     "\n" +
                     "public class ");
             writer.write(output.getName().replace(".java", ""));
             writer.write(" {\n" +
                     getTabs(1) + "public static void main(String[] args) throws IOException {\n" +
-                    getTabs(2) + "List<Byte> data = new ArrayList<>();\n" +
-                    getTabs(2) + "data.add((byte) 0);\n" +
-                    getTabs(2) + "int pos = 0;\n" +
+                    getTabs(2) + "int len = 0x" + Integer.toString(tapeLength, 16) + ";\n" +
+                    getTabs(2) + "byte[] data = new byte[len];\n" +
+                    getTabs(2) + "int ptr = 0;\n" +
                     "\n");
 
             while((n = input.read()) != -1) {
@@ -148,19 +148,19 @@ public class Transpiler implements Runnable {
     private String tokenToJava(char opcode, int length) {
         switch(opcode) {
         case '<':
-            return "pos -= " + length + ";";
+            return "ptr = Math.floorMod(ptr - " + length + ", len);";
         case '>':
-            return "pos += " + length + "; while(pos >= data.size()) data.add((byte) 0);";
+            return "ptr = (ptr + " + length + ") % len;";
         case '-':
-            return "data.set(pos, (byte) (data.get(pos) - " + length + "));";
+            return "data[ptr] -= " + length + ";";
         case '+':
-            return "data.set(pos, (byte) (data.get(pos) + " + length + "));";
+            return "data[ptr] += " + length + ";";
         case '.':
-            return "System.out.print((char)(byte) data.get(pos));";
+            return "System.out.print((char)data[ptr]);";
         case ',':
-            return "data.set(pos, (byte) System.in.read());";
+            return "data[ptr] = (byte) System.in.read();";
         case '[':
-            return "while(data.get(pos) != 0) {";
+            return "while(data[ptr] != 0) {";
         case ']':
             return "}";
         }
