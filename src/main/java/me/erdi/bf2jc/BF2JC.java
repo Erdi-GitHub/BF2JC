@@ -24,6 +24,7 @@ public class BF2JC {
                     "   -o FILE          Output Java file [default: ." + File.separator + "out.java]\n" +
                     "   -r, --replace    Replace the output file if it already exists [default: false]\n" +
                     "   -p, --pipeable   Use input-stream as input (intended for piping) [default: false]\n" +
+                    "   -m, --minify     Minify the resulting Java code [default: false]\n" +
                     "   --length LENGTH  The length of the memory tape in bytes [default: 30000]\n" +
                     "   --fix-open       Automatically close unclosed brackets instead of refusing to compile [default: false]\n" +
                     "   --spaces SPACES  Use spaces instead of tabs (min: 0, max: 6) [default: -1]";
@@ -51,9 +52,10 @@ public class BF2JC {
         }
 
         boolean pipeable = (boolean)opts.get("--pipeable");
+        boolean minify = (boolean)opts.get("--minify");
 
         int length = Integer.parseInt((String)opts.get("--length"));
-        Transpiler transpiler = new Transpiler(tab, pipeable ? new InputStreamReader(System.in) : new FileReader((String) opts.get("-i")), output, length);
+        Transpiler transpiler = new Transpiler(tab, pipeable ? new InputStreamReader(System.in) : new FileReader((String) opts.get("-i")), output, length, minify);
         transpiler.setFixUnclosedBracket((boolean)opts.get("--fix-open"));
 
         long start = System.nanoTime();

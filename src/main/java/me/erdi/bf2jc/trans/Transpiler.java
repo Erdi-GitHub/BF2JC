@@ -30,21 +30,51 @@ public class Transpiler implements Runnable {
     private final File output;
     private final int tapeLength;
 
+    private final boolean minify;
+
     private boolean fixUnclosedBracket = false;
 
-    public Transpiler(String tab, Reader input, File output, int tapeLength) {
+    private final String ptrField;
+    private final String lenField;
+    private final String dataField;
+
+    public Transpiler(String tab, Reader input, File output, int tapeLength, boolean minify) {
         this.tab = tab;
         this.input = new BufferedReader(input);
         this.output = output;
         this.tapeLength = tapeLength;
+        this.minify = minify;
+
+        if(minify) {
+            ptrField = "p";
+            lenField = "l";
+            dataField = "t";
+        } else {
+            ptrField = "ptr";
+            lenField = "len";
+            dataField = "tape";
+        }
     }
 
     private String getTabs(int depth) {
+        if(minify)
+            return "";
+
         return String.join("", Collections.nCopies(depth, tab));
     }
 
     private String handle(char opcode, int length, int depth) {
-        return getTabs(depth + 2) + tokenToJava(opcode, length) + System.lineSeparator();
+        String expr = tokenToJava(opcode, length);
+        if(expr == null)
+            return "";
+
+        // remove spaces if necessary
+        // NOTE: nothing returned from #tokenToJava(int,int) is whitespace-sensitive
+        if(minify)
+            expr = expr.replace(" ", "");
+
+        return getTabs(depth + 2) + expr +
+                (minify ? "" : System.lineSeparator());
     }
 
     public void setFixUnclosedBracket(boolean fixUnclosedBracket) {
@@ -59,18 +89,32 @@ public class Transpiler implements Runnable {
 
         int n;
 
+        String newLine = minify ? "" : "\n";
+        String space = minify ? "" : " ";
+
+        String len = Integer.toString(tapeLength, 10);
+
+        if(minify) {
+            // use hex number whenever it's shorter than the decimal equivalent
+
+            String hexLen = "0x" + Integer.toString(tapeLength, 16);
+            if(hexLen.length() < len.length())
+                len = hexLen;
+        }
 
         try(BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
-            writer.write("import java.io.IOException;\n" +
-                    "\n" +
-                    "public class ");
+            if(!minify)
+                writer.write("import java.io.IOException;\n\n");
+            writer.write("public class ");
             writer.write(output.getName().replace(".java", ""));
-            writer.write(" {\n" +
-                    getTabs(1) + "public static void main(String[] args) throws IOException {\n" +
-                    getTabs(2) + "int len = 0x" + Integer.toString(tapeLength, 16) + ";\n" +
-                    getTabs(2) + "byte[] data = new byte[len];\n" +
-                    getTabs(2) + "int ptr = 0;\n" +
-                    "\n");
+
+
+            writer.write(("_{\n" +
+                    getTabs(1) + "public static void main(String[]_" + (minify ? "$" : "args") + ")_throws " + (minify ? "java.io." : "") + "IOException_{\n" +
+                    getTabs(2) + "int " + lenField + "_=_" + len + ";\n" +
+                    getTabs(2) + "byte[]_" + dataField + "_=_new byte[" + lenField + "];\n" +
+                    getTabs(2) + "int " + ptrField + "_=_0;\n" +
+                    "\n").replace("\n", newLine).replace("_", space));
 
             while((n = input.read()) != -1) {
                 if(!OPCODES.contains((char) n))
@@ -106,14 +150,8 @@ public class Transpiler implements Runnable {
             }
 
             // handle EOF
-            if(opcode == ']') {
-                depth--;
-
-                if(depth < 0)
-                    throw new UnsupportedOperationException("Unbalanced brackets! (Unexpected ']')");
-            }
-            writer.write(handle(opcode, length, depth));
-            // handle EOF
+            if(lengthable(opcode))
+                writer.write(handle(opcode, length, depth));
 
             if(depth != 0) {
                 if(!fixUnclosedBracket)
@@ -126,7 +164,7 @@ public class Transpiler implements Runnable {
                 }
             }
 
-            writer.write(getTabs(1) + "}\n" +
+            writer.write(getTabs(1) + "}" + newLine +
                     "}");
         } catch(IOException e) {
             throw new RuntimeException(e);
@@ -148,19 +186,19 @@ public class Transpiler implements Runnable {
     private String tokenToJava(char opcode, int length) {
         switch(opcode) {
         case '<':
-            return "ptr = Math.floorMod(ptr - " + length + ", len);";
+            return ptrField + " = Math.floorMod(" + ptrField + " - " + length + ", " + lenField + ");";
         case '>':
-            return "ptr = (ptr + " + length + ") % len;";
+            return ptrField + " = (" + ptrField + " + " + length + ") % " + lenField + ";";
         case '-':
-            return "data[ptr] -= " + length + ";";
+            return dataField + "[" + ptrField + "] -= " + length + ";";
         case '+':
-            return "data[ptr] += " + length + ";";
+            return dataField + "[" + ptrField + "] += " + length + ";";
         case '.':
-            return "System.out.print((char)data[ptr]);";
+            return "System.out.print((char)" + dataField + "[" + ptrField + "]);";
         case ',':
-            return "data[ptr] = (byte) System.in.read();";
+            return dataField + "[" + ptrField + "] = (byte) System.in.read();";
         case '[':
-            return "while(data[ptr] != 0) {";
+            return "while(" + dataField + "[" + ptrField + "] != 0) {";
         case ']':
             return "}";
         }
