@@ -38,6 +38,18 @@ public class Transpiler implements Runnable {
     private final String lenField;
     private final String dataField;
 
+    public Transpiler(Reader input, File output) {
+        this("\t", input, output);
+    }
+
+    public Transpiler(String tab, Reader input, File output) {
+        this(tab, input, output, 30000);
+    }
+
+    public Transpiler(String tab, Reader input, File output, int tapeLength) {
+        this(tab, input, output, tapeLength, false);
+    }
+
     public Transpiler(String tab, Reader input, File output, int tapeLength, boolean minify) {
         this.tab = tab;
         this.input = new BufferedReader(input);
