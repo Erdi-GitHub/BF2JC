@@ -37,6 +37,7 @@ public class Transpiler implements Runnable {
     private final String ptrField;
     private final String lenField;
     private final String dataField;
+    private final String scannerField;
 
     public Transpiler(Reader input, File output) {
         this("\t", input, output);
@@ -61,10 +62,12 @@ public class Transpiler implements Runnable {
             ptrField = "p";
             lenField = "l";
             dataField = "t";
+            scannerField = "s";
         } else {
             ptrField = "ptr";
             lenField = "len";
             dataField = "tape";
+            scannerField = "in";
         }
     }
 
@@ -116,7 +119,9 @@ public class Transpiler implements Runnable {
 
         try(BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
             if(!minify)
-                writer.write("import java.io.IOException;\n\n");
+                writer.write("import java.io.IOException;\n");
+            writer.write("import java.util.Scanner;" + newLine + newLine);
+
             writer.write("public class ");
             writer.write(output.getName().replace(".java", ""));
 
@@ -126,6 +131,7 @@ public class Transpiler implements Runnable {
                     getTabs(2) + "int " + lenField + "_=_" + len + ";\n" +
                     getTabs(2) + "byte[]_" + dataField + "_=_new byte[" + lenField + "];\n" +
                     getTabs(2) + "int " + ptrField + "_=_0;\n" +
+                    getTabs(2) + "Scanner " + scannerField + "_=_new Scanner(System.in);\n" +
                     "\n").replace("\n", newLine).replace("_", space));
 
             while((n = input.read()) != -1) {
@@ -208,7 +214,7 @@ public class Transpiler implements Runnable {
         case '.':
             return "System.out.print((char)" + dataField + "[" + ptrField + "]);";
         case ',':
-            return dataField + "[" + ptrField + "] = (byte) System.in.read();";
+            return dataField + "[" + ptrField + "] = " + scannerField + ".next().getBytes()[0];";
         case '[':
             return "while(" + dataField + "[" + ptrField + "] != 0) {";
         case ']':
