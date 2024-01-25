@@ -1,5 +1,6 @@
 package me.erdi.bf2jc;
 
+import me.erdi.bf2jc.trans.CellSize;
 import me.erdi.bf2jc.trans.Transpiler;
 import org.docopt.Docopt;
 
@@ -25,6 +26,7 @@ public class BF2JC {
                     "   -r, --replace    Replace the output file if it already exists [default: false]\n" +
                     "   -p, --pipeable   Use input-stream as input (intended for piping) [default: false]\n" +
                     "   -m, --minify     Minify the resulting Java code [default: false]\n" +
+                    "   -w W, --width W  Cell width, either 8 or 16. This has no impact on memory usage [default: 8]\n" +
                     "   --length LENGTH  The length of the memory tape in bytes [default: 30000]\n" +
                     "   --fix-open       Automatically close unclosed brackets instead of refusing to compile [default: false]\n" +
                     "   --spaces SPACES  Use spaces instead of tabs (min: 0, max: 6) [default: -1]";
@@ -54,9 +56,24 @@ public class BF2JC {
         boolean pipeable = (boolean)opts.get("--pipeable");
         boolean minify = (boolean)opts.get("--minify");
 
+        int cellWidth = Integer.parseInt((String)opts.get("--width"));
+        CellSize cellSize = null;
+        switch(cellWidth) {
+            case 8:
+                cellSize = CellSize.SINGLE_BYTE;
+                break;
+            case 16:
+                cellSize = CellSize.DOUBLE_BYTE;
+                break;
+            default:
+                System.err.println("Invalid cell width (" + cellWidth + "). Must be either 8 or 16.");
+                System.exit(1);
+        }
+
         int length = Integer.parseInt((String)opts.get("--length"));
         Transpiler transpiler = new Transpiler(tab, pipeable ? new InputStreamReader(System.in) : new FileReader((String) opts.get("-i")), output, length, minify);
         transpiler.setFixUnclosedBracket((boolean)opts.get("--fix-open"));
+        transpiler.setCellSize(cellSize);
 
         long start = System.nanoTime();
         transpiler.run();

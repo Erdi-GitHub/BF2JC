@@ -39,6 +39,8 @@ public class Transpiler implements Runnable {
     private final String dataField;
     private final String scannerField;
 
+    private CellSize cellSize = CellSize.SINGLE_BYTE;
+
     public Transpiler(Reader input, File output) {
         this("\t", input, output);
     }
@@ -96,6 +98,10 @@ public class Transpiler implements Runnable {
         this.fixUnclosedBracket = fixUnclosedBracket;
     }
 
+    public void setCellSize(CellSize cellSize) {
+        this.cellSize = cellSize;
+    }
+
     @Override
     public void run() {
         char opcode = '\0';
@@ -129,7 +135,7 @@ public class Transpiler implements Runnable {
             writer.write(("_{\n" +
                     getTabs(1) + "public static void main(String[]_" + (minify ? "$" : "args") + ")_throws " + (minify ? "java.io." : "") + "IOException_{\n" +
                     getTabs(2) + "int " + lenField + "_=_" + len + ";\n" +
-                    getTabs(2) + "byte[]_" + dataField + "_=_new byte[" + lenField + "];\n" +
+                    getTabs(2) + "char[]_" + dataField + "_=_new char[" + lenField + "];\n" +
                     getTabs(2) + "int " + ptrField + "_=_0;\n" +
                     getTabs(2) + "Scanner " + scannerField + "_=_new Scanner(System.in);\n" +
                     "\n").replace("\n", newLine).replace("_", space));
@@ -202,19 +208,22 @@ public class Transpiler implements Runnable {
     }
 
     private String tokenToJava(char opcode, int length) {
+        String cell = dataField + "[" + ptrField + "]";
+        String mod = (cellSize == CellSize.SINGLE_BYTE ? " " + cell + " %= 256;" : "");
+
         switch(opcode) {
         case '<':
             return ptrField + " = Math.floorMod(" + ptrField + " - " + length + ", " + lenField + ");";
         case '>':
             return ptrField + " = (" + ptrField + " + " + length + ") % " + lenField + ";";
         case '-':
-            return dataField + "[" + ptrField + "] -= " + length + ";";
+            return cell + " -= " + length + ";" + mod;
         case '+':
-            return dataField + "[" + ptrField + "] += " + length + ";";
+            return cell + " += " + length + ";" + mod;
         case '.':
-            return "System.out.print((char)" + dataField + "[" + ptrField + "]);";
+            return "System.out.print(" + dataField + "[" + ptrField + "]);";
         case ',':
-            return dataField + "[" + ptrField + "] = " + scannerField + ".next().getBytes()[0];";
+            return cell + " = " + scannerField + ".next().charAt(0);";
         case '[':
             return "while(" + dataField + "[" + ptrField + "] != 0) {";
         case ']':
