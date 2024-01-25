@@ -17,6 +17,7 @@ Options:
    -r, --replace    Replace the output file if it already exists [default: false]
    -p, --pipeable   Use input-stream as input (intended for piping) [default: false]
    -m, --minify     Minify the resulting Java code [default: false]
+   -w W, --width W  Cell width, either 8 or 16. This has no impact on memory usage [default: 8]
    --length LENGTH  The length of the memory tape in bytes [default: 30000]
    --fix-open       Automatically close unclosed brackets instead of refusing to compile [default: false]
    --spaces SPACES  Use spaces instead of tabs (min: 0, max: 6) [default: -1]
